@@ -85,12 +85,12 @@ snd-soc-wm8994-objs := wm8994_samsung.o wm8994_bose.o
 else
 ifeq ($(CONFIG_MACH_N1),y)
 snd-soc-wm8994-objs := wm8994_samsung.o wm8994_n1.o
+ifeq ($(CONFIG_SND_VOODOO),y)
+snd-soc-wm8994-objs += wm8994_voodoo.o
+endif
 else
 snd-soc-wm8994-objs := wm8994.o wm8994-tables.o wm8958-dsp2.o
 endif
-endif
-ifeq (ifeq ($(CONFIG_SND_VOODOO),y)
-snd-soc-wm8994-objs += wm8994_voodoo.o
 endif
 snd-soc-wm8995-objs := wm8995.o
 snd-soc-wm9081-objs := wm9081.o
