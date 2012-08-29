@@ -26,6 +26,8 @@
 #include <linux/init.h>
 #include <linux/compiler.h>
 #include <linux/rbtree.h>
+#include <linux/version.h>
+#include <asm/div64.h>
 
 enum vr_data_dir {
 	ASYNC,
@@ -70,25 +72,19 @@ vr_get_data(struct request_queue *q)
 static void
 vr_add_rq_rb(struct vr_data *vd, struct request *rq)
 {
-	struct request *alias = elv_rb_add(&vd->sort_list, rq);
+	elv_rb_add(&vd->sort_list, rq);
 
-	if (unlikely(alias)) {
-		vr_move_request(vd, alias);
-		alias = elv_rb_add(&vd->sort_list, rq);
-		BUG_ON(alias);
-	}
-
-	if (rq->sector >= vd->last_sector) {
-		if (!vd->next_rq || vd->next_rq->sector > rq->sector)
+	if (rq->__sector >= vd->last_sector) {
+		if (!vd->next_rq || vd->next_rq->__sector > rq->__sector)
 			vd->next_rq = rq;
 	}
 	else {
-		if (!vd->prev_rq || vd->prev_rq->sector < rq->sector)
+		if (!vd->prev_rq || vd->prev_rq->__sector < rq->__sector)
 			vd->prev_rq = rq;
 	}
 
 	BUG_ON(vd->next_rq && vd->next_rq == vd->prev_rq);
-	BUG_ON(vd->next_rq && vd->prev_rq && vd->next_rq->sector < vd->prev_rq->sector);
+	BUG_ON(vd->next_rq && vd->prev_rq && vd->next_rq->__sector < vd->prev_rq->__sector);
 }
 
 static void
@@ -105,7 +101,7 @@ vr_del_rq_rb(struct vr_data *vd, struct request *rq)
 		vd->prev_rq = elv_rb_former_request(NULL, rq);
 
 	BUG_ON(vd->next_rq && vd->next_rq == vd->prev_rq);
-	BUG_ON(vd->next_rq && vd->prev_rq && vd->next_rq->sector < vd->prev_rq->sector);
+	BUG_ON(vd->next_rq && vd->prev_rq && vd->next_rq->__sector < vd->prev_rq->__sector);
 
 	elv_rb_del(&vd->sort_list, rq);
 }
@@ -193,12 +189,12 @@ vr_move_request(struct vr_data *vd, struct request *rq)
 {
 	struct request_queue *q = rq->q;
 
-	if (rq->sector > vd->last_sector)
+	if (rq->__sector > vd->last_sector)
 		vd->head_dir = FORWARD;
 	else
 		vd->head_dir = BACKWARD;
 
-	vd->last_sector = rq->sector;
+	vd->last_sector = rq->__sector;
 	vd->next_rq = elv_rb_latter_request(NULL, rq);
 	vd->prev_rq = elv_rb_former_request(NULL, rq);
 
@@ -266,8 +262,8 @@ vr_choose_request(struct vr_data *vd)
 
 	/* At this point both prev and next are defined and distinct */
 
-	next_pen = next->sector - vd->last_sector;
-	prev_pen = vd->last_sector - prev->sector;
+	next_pen = next->__sector - vd->last_sector;
+	prev_pen = vd->last_sector - prev->__sector;
 
 	if (vd->head_dir == FORWARD)
 		next_pen /= penalty;
@@ -303,15 +299,17 @@ vr_dispatch_requests(struct request_queue *q, int force)
 	return 1;
 }
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,38)
 static int
 vr_queue_empty(struct request_queue *q)
 {
 	struct vr_data *vd = vr_get_data(q);
 	return RB_EMPTY_ROOT(&vd->sort_list);
 }
+#endif
 
 static void
-vr_exit_queue(elevator_t *e)
+vr_exit_queue(struct elevator_queue *e)
 {
 	struct vr_data *vd = e->elevator_data;
 	BUG_ON(!RB_EMPTY_ROOT(&vd->sort_list));
@@ -357,7 +355,7 @@ vr_var_store(int *var, const char *page, size_t count)
 }
 
 #define SHOW_FUNCTION(__FUNC, __VAR, __CONV)				\
-static ssize_t __FUNC(elevator_t *e, char *page)			\
+static ssize_t __FUNC(struct elevator_queue *e, char *page)			\
 {									\
 	struct vr_data *vd = e->elevator_data;				\
 	int __data = __VAR;						\
@@ -372,7 +370,7 @@ SHOW_FUNCTION(vr_rev_penalty_show, vd->rev_penalty, 0);
 #undef SHOW_FUNCTION
 
 #define STORE_FUNCTION(__FUNC, __PTR, MIN, MAX, __CONV)			\
-static ssize_t __FUNC(elevator_t *e, const char *page, size_t count)	\
+static ssize_t __FUNC(struct elevator_queue *e, const char *page, size_t count)	\
 {									\
 	struct vr_data *vd = e->elevator_data;				\
 	int __data;							\
@@ -412,7 +410,9 @@ static struct elevator_type iosched_vr = {
 		.elevator_merge_req_fn =	vr_merged_requests,
 		.elevator_dispatch_fn =		vr_dispatch_requests,
 		.elevator_add_req_fn =		vr_add_request,
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,38)
 		.elevator_queue_empty_fn =	vr_queue_empty,
+#endif
 		.elevator_former_req_fn =	elv_rb_former_request,
 		.elevator_latter_req_fn =	elv_rb_latter_request,
 		.elevator_init_fn =		vr_init_queue,

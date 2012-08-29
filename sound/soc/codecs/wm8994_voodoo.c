@@ -157,10 +157,12 @@ static ssize_t headphone_eq_b##band##_gain_store(struct device *dev,	       \
 	return size;							       \
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35)
+#define DECLARE_WM8994(codec) struct wm8994_priv *wm8994 = codec->private_data;
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37)
 #define DECLARE_WM8994(codec) struct wm8994_priv *wm8994 = codec->drvdata;
 #else
-#define DECLARE_WM8994(codec) struct wm8994_priv *wm8994 = codec->private_data;
+#define DECLARE_WM8994(codec) struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 #endif
 
 bool debug_log(short unsigned int level)
