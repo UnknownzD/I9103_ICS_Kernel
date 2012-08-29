@@ -89,6 +89,9 @@ else
 snd-soc-wm8994-objs := wm8994.o wm8994-tables.o wm8958-dsp2.o
 endif
 endif
+ifeq (ifeq ($(CONFIG_SND_VOODOO),y)
+snd-soc-wm8994-objs += wm8994_voodoo.o
+endif
 snd-soc-wm8995-objs := wm8995.o
 snd-soc-wm9081-objs := wm9081.o
 snd-soc-wm9705-objs := wm9705.o
