@@ -37,8 +37,8 @@ enum vr_head_dir {
 	BACKWARD,
 };
 
-static const int sync_expire = HZ / 2;  /* max time before a sync is submitted. */
-static const int async_expire = 5 * HZ; /* ditto for async, these limits are SOFT! */
+static const int sync_expire = HZ / 4;  /* max time before a sync is submitted. */
+static const int async_expire = HZ / 8; /* ditto for async, these limits are SOFT! */
 static const int fifo_batch = 16;
 static const int rev_penalty = 10;	/* penalty for reversing head direction */
 
