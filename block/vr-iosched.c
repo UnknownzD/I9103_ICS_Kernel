@@ -266,9 +266,9 @@ vr_choose_request(struct vr_data *vd)
 	prev_pen = vd->last_sector - prev->__sector;
 
 	if (vd->head_dir == FORWARD)
-		next_pen /= penalty;
+		next_pen = do_div(next_pen,penalty);
 	else
-		prev_pen /= penalty;
+		prev_pen = do_div(prev_pen,penalty);
 
 	if (next_pen <= prev_pen)
 		return next;
